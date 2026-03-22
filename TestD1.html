@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dungeon Crawler</title>
+    <style>
+        body { background: #111; color: #eee; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #game-container { margin-top: 50px; border: 5px solid #333; line-height: 0; }
+        .row { display: flex; }
+        .tile { width: 40px; height: 40px; box-sizing: border-box; }
+        .wall { background: #222; border: 1px solid #333; }
+        .floor { background: #444; }
+        .player { background: #2ecc71; border: 4px solid #27ae60; border-radius: 50%; }
+        .exit { background: #f1c40f; box-shadow: inset 0 0 15px #000; }
+        #ui { margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="ui"><h1 id="status">FIND THE EXIT</h1></div>
+
+    <script>
+        const map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,1,0,1,0,1],
+            [1,0,1,1,1,1,1,1,1,0,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+            [1,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,0,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,0,0,0,0,3,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        let player = { x: 1, y: 1 };
+        const container = document.getElementById('game-container');
+        const status = document.getElementById('status');
+
+        function render() {
+            container.innerHTML = '';
+            map.forEach((row, y) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row';
+                row.forEach((tile, x) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'tile ' + (tile === 1 ? 'wall' : tile === 3 ? 'exit' : 'floor');
+                    if (x === player.x && y === player.y) cell.classList.add('player');
+                    rowDiv.appendChild(cell);
+                });
+                container.appendChild(rowDiv);
+            });
+        }
+
+        window.addEventListener('keydown', e => {
+            let nx = player.x, ny = player.y;
+            if (e.key === 'ArrowUp') ny--;
+            if (e.key === 'ArrowDown') ny++;
+            if (e.key === 'ArrowLeft') nx--;
+            if (e.key === 'ArrowRight') nx++;
+
+            if (map[ny] && map[ny][nx] !== 1) {
+                player.x = nx; player.y = ny;
+                if (map[ny][nx] === 3) status.innerText = "WINNER";
+                render();
+            }
+        });
+
+        render();
+    </script>
+</body>
+</html>
