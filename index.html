@@ -1,139 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler</title>
+    <title>3D Dungeon Crawler</title>
     <style>
-        /* VISUAL STYLES */
-        body { 
-            background: #000; 
-            color: #fff; 
-            font-family: 'Courier New', monospace; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            margin: 0; 
-            overflow: hidden;
-        }
-
-        #game-container { 
-            border: 4px solid #444; 
-            background: #111;
-            display: inline-block;
-        }
-
-        .row { display: flex; }
-
-        .tile { 
-            width: 40px; 
-            height: 40px; 
-            box-sizing: border-box; 
-        }
-
-        /* TILE TYPES */
-        .wall  { background: #222; border: 1px solid #333; }
-        .floor { background: #444; border: 0.1px solid #555; }
-        .exit  { background: #f1c40f; box-shadow: inset 0 0 15px #000; }
-        
-        /* PLAYER STYLING */
-        .player { 
-            background: #2ecc71; 
-            border: 4px solid #27ae60; 
-            border-radius: 50%; 
-            transition: all 0.1s;
-        }
-
-        #ui { margin-top: 20px; text-align: center; }
-        h1 { margin: 0; letter-spacing: 2px; }
+        body { background: #000; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; color: lime; font-family: monospace; }
+        canvas { border: 2px solid #333; box-shadow: 0 0 20px #222; background: #111; }
+        #ui { position: absolute; top: 10px; text-align: center; pointer-events: none; }
     </style>
 </head>
 <body>
-
-    <div id="ui">
-        <h1 id="status">DUNGEON DEPTHS</h1>
-        <p>Use ARROW KEYS to reach the GOLD exit</p>
-    </div>
-
-    <div id="game-container"></div>
+    <div id="ui"><h1>LEVEL 01</h1><p>WASD to Move | ARROWS to Look</p></div>
+    <canvas id="c" width="640" height="480"></canvas>
 
     <script>
-        // MAP DATA: 1=Wall, 0=Floor, 3=Exit
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+
+        // 1 = Wall, 2 = Door/Exit, 0 = Floor
         const map = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],
-            [1,0,1,0,0,0,0,0,0,0,1,0,1,0,1],
-            [1,0,1,1,1,1,1,1,1,0,1,0,1,0,1],
-            [1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
-            [1,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
-            [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-            [1,0,1,1,1,0,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,1,0,0,0,0,0,0,0,0,3,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1],
+            [1,0,1,1,1,0,1,0,1,1,1,1,1,0,0,2],
+            [1,0,1,0,0,0,0,0,1,0,0,0,1,0,1,1],
+            [1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+            [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,1],
+            [1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        let player = { x: 1, y: 1 };
-        const container = document.getElementById('game-container');
-        const status = document.getElementById('status');
+        let p = { x: 1.5, y: 1.5, dir: 0, v: 0, turn: 0 };
+        const keys = {};
+        window.onkeydown = e => keys[e.key.toLowerCase()] = 1;
+        window.onkeyup = e => keys[e.key.toLowerCase()] = 0;
 
-        // CORE RENDERING LOGIC
-        function render() {
-            container.innerHTML = '';
-            map.forEach((row, y) => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'row';
-                row.forEach((tile, x) => {
-                    const cell = document.createElement('div');
-                    cell.className = 'tile';
-                    
-                    // Assign class based on data
-                    if (tile === 1) cell.classList.add('wall');
-                    else if (tile === 3) cell.classList.add('exit');
-                    else cell.classList.add('floor');
+        function update() {
+            if (keys['arrowleft']) p.dir -= 0.05;
+            if (keys['arrowright']) p.dir += 0.05;
+            let speed = (keys['w'] ? 0.06 : 0) - (keys['s'] ? 0.06 : 0);
+            let nx = p.x + Math.cos(p.dir) * speed;
+            let ny = p.y + Math.sin(p.dir) * speed;
+            
+            if (map[Math.floor(ny)][Math.floor(nx)] === 0) { p.x = nx; p.y = ny; }
+            else if (map[Math.floor(ny)][Math.floor(nx)] === 2) alert("EXIT REACHED");
 
-                    // Draw player at current coordinates
-                    if (x === player.x && y === player.y) {
-                        cell.classList.add('player');
-                    }
-                    
-                    rowDiv.appendChild(cell);
-                });
-                container.appendChild(rowDiv);
-            });
-        }
+            // Render
+            ctx.fillStyle = '#111'; ctx.fillRect(0,0,640,480); // Ceiling
+            ctx.fillStyle = '#222'; ctx.fillRect(0,240,640,240); // Floor
 
-        // MOVEMENT LOGIC
-        window.addEventListener('keydown', e => {
-            let nx = player.x;
-            let ny = player.y;
-
-            if (e.key === 'ArrowUp') ny--;
-            if (e.key === 'ArrowDown') ny++;
-            if (e.key === 'ArrowLeft') nx--;
-            if (e.key === 'ArrowRight') nx++;
-
-            // Collision Check: If not a wall, move.
-            if (map[ny] && map[ny][nx] !== 1) {
-                player.x = nx;
-                player.y = ny;
-                
-                // Win Check
-                if (map[ny][nx] === 3) {
-                    status.innerText = "LEVEL CLEAR!";
-                    status.style.color = "#f1c40f";
-                } else {
-                    status.innerText = "DUNGEON DEPTHS";
-                    status.style.color = "#fff";
+            for (let i = 0; i < 640; i++) {
+                let rayDir = (p.dir - 0.5) + (i / 640);
+                let dist = 0, hit = 0;
+                while (dist < 20 && hit === 0) {
+                    dist += 0.05;
+                    let rx = Math.floor(p.x + Math.cos(rayDir) * dist);
+                    let ry = Math.floor(p.y + Math.sin(rayDir) * dist);
+                    if (map[ry][rx] > 0) hit = map[ry][rx];
                 }
-                render();
+                
+                let h = 400 / (dist * Math.cos(rayDir - p.dir));
+                ctx.fillStyle = hit === 2 ? 'gold' : `rgb(${200/dist},${200/dist},${200/dist})`;
+                ctx.fillRect(i, 240 - h/2, 1, h);
             }
-        });
-
-        // Start the game
-        render();
+            requestAnimationFrame(update);
+        }
+        update();
     </script>
 </body>
 </html>
