@@ -26,103 +26,127 @@
 
     <script>
         const canvas = document.getElementById('c');
-        const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d');
+
+// 1. DATA STRUCTURES
+const map = [
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,0,0,0,1,0,1],
+    [1,0,0,0,0,1,0,1,0,1],
+    [1,1,1,1,0,1,0,1,0,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1]
+];
+
+let player = { x: 1.5, y: 1.5, dir: 0, hp: 100, inBattle: false };
+let enemies = [];
+const keys = {};
+
+// 2. RANDOM SPAWN LOGIC
+function spawnEnemies() {
+    for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+            // If it's a floor and not the player's starting block
+            if (map[y][x] === 0 && (x > 2 || y > 2)) {
+                if (Math.random() < 0.10) { // 10% chance per tile
+                    enemies.push({ x: x + 0.5, y: y + 0.5, hp: 50, alive: true });
+                }
+            }
+        }
+    }
+    document.getElementById('ecount').innerText = enemies.filter(e => e.alive).length;
+}
+
+// 3. COMBAT & INPUT
+window.onkeydown = e => keys[e.key.toLowerCase()] = 1;
+window.onkeyup = e => keys[e.key.toLowerCase()] = 0;
+
+let currentEnemy = null;
+
+function attack() {
+    if (!currentEnemy) return;
+    currentEnemy.hp -= 25;
+    if (currentEnemy.hp <= 0) {
+        currentEnemy.alive = false;
+        player.inBattle = false;
+        document.getElementById('battle-menu').style.display = 'none';
+        document.getElementById('ecount').innerText = enemies.filter(e => e.alive).length;
+    } else {
+        player.hp -= 10;
+        document.getElementById('hp').innerText = player.hp;
+        if (player.hp <= 0) location.reload();
+    }
+    document.getElementById('ehp').innerText = currentEnemy ? currentEnemy.hp : 0;
+}
+
+// 4. ENGINE
+function update() {
+    if (!player.inBattle) {
+        if (keys['arrowleft']) player.dir -= 0.05;
+        if (keys['arrowright']) player.dir += 0.05;
+        let speed = (keys['w'] ? 0.05 : 0) - (keys['s'] ? 0.05 : 0);
+        let nx = player.x + Math.cos(player.dir) * speed;
+        let ny = player.y + Math.sin(player.dir) * speed;
         
-        // Game State
-        let player = { x: 2, y: 2, dir: 0, hp: 100, inBattle: false };
-        let enemy = { x: 5.5, y: 5.5, hp: 50, alive: true };
-        const keys = {};
-
-        const map = [
-            [1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,0,1],
-            [1,0,1,1,0,1,0,1],
-            [1,0,1,0,0,1,0,1],
-            [1,0,0,0,0,1,0,1],
-            [1,0,1,1,0,0,0,1],
-            [1,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1]
-        ];
-
-        // Input
-        window.onkeydown = e => keys[e.key.toLowerCase()] = 1;
-        window.onkeyup = e => keys[e.key.toLowerCase()] = 0;
-
-        function attack() {
-            enemy.hp -= 20;
-            if (enemy.hp <= 0) {
-                enemy.alive = false;
-                player.inBattle = false;
-                document.getElementById('battle-menu').style.display = 'none';
-                document.getElementById('ecount').innerText = "0";
-            } else {
-                player.hp -= 10;
-                document.getElementById('hp').innerText = player.hp;
-                if (player.hp <= 0) location.reload(); // Game Over
-            }
-            document.getElementById('ehp').innerText = enemy.hp;
+        if (map[Math.floor(ny)][Math.floor(nx)] === 0) { 
+            player.x = nx; player.y = ny; 
         }
 
-        function run() {
-            player.x -= Math.cos(player.dir) * 0.5;
-            player.y -= Math.sin(player.dir) * 0.5;
-            player.inBattle = false;
-            document.getElementById('battle-menu').style.display = 'none';
-        }
-
-        function update() {
-            if (!player.inBattle) {
-                if (keys['arrowleft']) player.dir -= 0.05;
-                if (keys['arrowright']) player.dir += 0.05;
-                let speed = (keys['w'] ? 0.05 : 0) - (keys['s'] ? 0.05 : 0);
-                let nx = player.x + Math.cos(player.dir) * speed;
-                let ny = player.y + Math.sin(player.dir) * speed;
-                if (map[Math.floor(ny)][Math.floor(nx)] === 0) { player.x = nx; player.y = ny; }
-
-                // Check distance to enemy for combat trigger
-                let distToEnemy = Math.sqrt((player.x - enemy.x)**2 + (player.y - enemy.y)**2);
-                if (enemy.alive && distToEnemy < 0.4) {
+        // Check distance for ALL enemies
+        enemies.forEach(e => {
+            if (e.alive) {
+                let d = Math.sqrt((player.x - e.x)**2 + (player.y - e.y)**2);
+                if (d < 0.4) {
                     player.inBattle = true;
+                    currentEnemy = e;
                     document.getElementById('battle-menu').style.display = 'block';
+                    document.getElementById('ehp').innerText = e.hp;
                 }
             }
+        });
+    }
 
-            // Draw World
-            ctx.fillStyle = '#050505'; ctx.fillRect(0,0,640,240); // Ceiling
-            ctx.fillStyle = '#151515'; ctx.fillRect(0,240,640,240); // Floor
+    // DRAWING
+    ctx.fillStyle = '#050505'; ctx.fillRect(0,0,640,240); 
+    ctx.fillStyle = '#151515'; ctx.fillRect(0,240,640,240);
 
-            for (let i = 0; i < 640; i++) {
-                let rayDir = (player.dir - 0.5) + (i / 640);
-                let dist = 0, hit = 0;
-                while (dist < 15 && hit === 0) {
-                    dist += 0.02;
-                    let rx = Math.floor(player.x + Math.cos(rayDir) * dist);
-                    let ry = Math.floor(player.y + Math.sin(player.dir + (i/640 - 0.5)) * dist); // Standard perspective fix
-                    if (map[ry][rx] === 1) hit = 1;
-                }
-                let h = 400 / (dist * Math.cos(rayDir - player.dir));
-                ctx.fillStyle = `rgb(0, ${150/dist}, 0)`;
-                ctx.fillRect(i, 240 - h/2, 1, h);
-
-                // Simple Enemy Sprite Rendering Logic
-                if (enemy.alive) {
-                    let spriteDir = Math.atan2(enemy.y - player.y, enemy.x - player.x) - player.dir;
-                    if (spriteDir > Math.PI) spriteDir -= 2 * Math.PI;
-                    if (spriteDir < -Math.PI) spriteDir += 2 * Math.PI;
-                    
-                    let screenX = (spriteDir + 0.5) * 640;
-                    let eDist = Math.sqrt((player.x - enemy.x)**2 + (player.y - enemy.y)**2);
-                    let spriteHeight = 400 / eDist;
-                    
-                    if (i === Math.floor(screenX) && eDist < dist) {
-                        ctx.fillStyle = "red";
-                        ctx.fillRect(i - spriteHeight/4, 240 - spriteHeight/2, spriteHeight/2, spriteHeight);
-                    }
-                }
-            }
-            requestAnimationFrame(update);
+    for (let i = 0; i < 640; i++) {
+        let rayDir = (player.dir - 0.5) + (i / 640);
+        let dist = 0, hit = 0;
+        while (dist < 15 && hit === 0) {
+            dist += 0.02;
+            let rx = Math.floor(player.x + Math.cos(rayDir) * dist);
+            let ry = Math.floor(player.y + Math.sin(rayDir) * dist);
+            if (map[ry] && map[ry][rx] === 1) hit = 1;
         }
-        update();
+        let h = 400 / (dist * Math.cos(rayDir - player.dir));
+        ctx.fillStyle = `rgb(0, ${150/dist}, 0)`;
+        ctx.fillRect(i, 240 - h/2, 1, h);
+
+        // Render Sprites in the Raycast Loop
+        enemies.forEach(e => {
+            if (e.alive) {
+                let spriteDir = Math.atan2(e.y - player.y, e.x - player.x) - player.dir;
+                while (spriteDir < -Math.PI) spriteDir += 2 * Math.PI;
+                while (spriteDir > Math.PI) spriteDir -= 2 * Math.PI;
+                
+                let screenX = (spriteDir + 0.5) * 640;
+                let eDist = Math.sqrt((player.x - e.x)**2 + (player.y - e.y)**2);
+                let spriteHeight = 400 / eDist;
+                
+                if (Math.abs(i - screenX) < spriteHeight/4 && eDist < dist) {
+                    ctx.fillStyle = "red";
+                    ctx.fillRect(i, 240 - spriteHeight/2, 1, spriteHeight);
+                }
+            }
+        });
+    }
+    requestAnimationFrame(update);
+}
+
+spawnEnemies();
+update();
     </script>
 </body>
 </html>
